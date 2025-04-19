@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["mcapture*"]
+
+[project]
+name = "mcapture"
+version = "0.1.0"
+description = "A sample Python package"
+authors = [{ name = "Your Name", email = "your.email@example.com" }]
+readme = "README.md"
+license = { text = "MIT" }
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/ry0/mcapture"
