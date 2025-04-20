@@ -161,61 +161,71 @@ class Synchronizer:
         print(f"ApproximateTime sync: Found {len(synchronized_data)} synchronized frames")
         return synchronized_data
 
-    def _synchronize_approximate_epsilon_time(self, data: Dict) -> List[Dict]:
+    def _synchronize_approximate_epsilon_time(self, data: Dict, queue_size: int = 100) -> List[Dict]:
         """
-        ApproximateEpsilonTime同期方式の実装
-        時間枠内にあるメッセージの組み合わせを発見し、最も時間差が小さい組み合わせを取得
+        ApproximateEpsilonTime同期方式
+
+        Args:
+            data: トピック名をキー、メッセージリストを値とする辞書
+            queue_size: 各トピックのキューの最大サイズ
 
         Returns:
             List[Dict]: 同期されたデータフレーム
         """
-        # 各トピックのイテレータを作成
-        iterators = {topic: iter(msgs) for topic, msgs in data.items() if msgs}
+        # 1. データの準備
+        original_data = {topic: list(msgs) for topic, msgs in data.items() if msgs}
 
-        # 現在のメッセージを保持する辞書
-        current_msgs = {}
+        # 2. すべてのトピックにメッセージがあるか確認
+        if len(original_data) != len(data):
+            print(f"一部のトピックにメッセージがありません。同期は実行されません。")
+            return []
 
-        # 各イテレータから最初のメッセージを取得
-        for topic, it in iterators.items():
-            try:
-                current_msgs[topic] = next(it)
-            except StopIteration:
-                pass
+        # 3. 各トピックのメッセージキューとイテレータを初期化
+        message_queues = {topic: [] for topic in original_data}
+        data_iterators = {topic: iter(msgs) for topic, msgs in original_data.items()}
+
+        # 4. 初期キューの充填
+        for topic, iterator in data_iterators.items():
+            self._fill_queue(topic, iterator, message_queues, queue_size)
 
         synchronized_data = []
 
-        while len(current_msgs) == len(data):
-            # 現在のメッセージ群の中で最小と最大のタイムスタンプを見つける
-            timestamps = [self._to_nanoseconds(msg) for msg in current_msgs.values()]
-            min_time = min(timestamps)
-            max_time = max(timestamps)
+        # 5. メインの同期ループ
+        while True:
+            # 5.1 空のキューがあるか確認し、あれば終了
+            if any(len(queue) == 0 for queue in message_queues.values()):
+                break
 
-            # 最大時間差がイプシロン以内なら、同期フレームとして追加
-            if (max_time - min_time) / 1e9 <= self.time_tolerance:
-                frame = {'stamp': self._from_nanoseconds(min_time)}  # 最も早いタイムスタンプを使用
+            # 5.2 各キューの先頭メッセージを取得
+            heads = {topic: queue[0] for topic, queue in message_queues.items()}
 
-                for topic, msg in current_msgs.items():
+            # 5.3 タイムスタンプを取得して最小と最大を見つける
+            timestamps = {topic: self._to_nanoseconds(msg) for topic, msg in heads.items()}
+            min_time = min(timestamps.values())
+            max_time = max(timestamps.values())
+
+            # 5.4 時間差がイプシロン以内かチェック
+            time_diff = (max_time - min_time) / 1e9
+            if time_diff <= self.time_tolerance:
+                # 5.4.1 同期フレームを作成
+                frame = {'stamp': self._from_nanoseconds(max_time)}
+                for topic, msg in heads.items():
                     frame[topic] = msg
 
                 synchronized_data.append(frame)
 
-                # すべてのイテレータを進める
-                for topic in list(current_msgs.keys()):
-                    try:
-                        current_msgs[topic] = next(iterators[topic])
-                    except StopIteration:
-                        del current_msgs[topic]
-                        del iterators[topic]
+                # 5.4.2 使用したメッセージをすべてのキューから削除し、新しいメッセージを補充
+                for topic in message_queues:
+                    message_queues[topic].pop(0)
+                    self._fill_queue(topic, data_iterators[topic], message_queues, queue_size)
             else:
-                # 最小タイムスタンプを持つトピックのイテレータだけを進める
-                min_topics = [topic for topic, msg in current_msgs.items() if self._to_nanoseconds(msg) == min_time]
+                # 5.5 イプシロンを超える場合、最も古いメッセージを持つトピックだけを更新
+                oldest_topics = [topic for topic, ts in timestamps.items() if ts == min_time]
 
-                for topic in min_topics:
-                    try:
-                        current_msgs[topic] = next(iterators[topic])
-                    except StopIteration:
-                        del current_msgs[topic]
-                        del iterators[topic]
+                # 5.5.1 古いメッセージをキューから削除し、新しいメッセージを補充
+                for topic in oldest_topics:
+                    message_queues[topic].pop(0)
+                    self._fill_queue(topic, data_iterators[topic], message_queues, queue_size)
 
         print(f"ApproximateEpsilonTime sync: Found {len(synchronized_data)} synchronized frames")
         return synchronized_data
@@ -336,6 +346,29 @@ class Synchronizer:
             return messages[latest_idx]
         else:
             return None
+
+    def _fill_queue(self, topic, iterator, message_queues, queue_size):
+        """
+        指定されたトピックのキューを最大サイズまで補充する
+
+        Args:
+            topic: 対象トピック名
+            iterator: メッセージを取得するイテレータ
+            message_queues: 全トピックのメッセージキュー
+            queue_size: キューの最大サイズ
+        """
+        current_size = len(message_queues[topic])
+        if current_size >= queue_size:
+            return
+
+        # キューが最大サイズに達するまで、または利用可能なメッセージがなくなるまで補充
+        try:
+            for _ in range(queue_size - current_size):
+                message = next(iterator)
+                message_queues[topic].append(message)
+        except StopIteration:
+            # 新しいメッセージがなければ何もしない
+            pass
 
     def plot(self, data: List[Dict], target_topics: List[str], save_path: Optional[str] = None):
         mod_indices = {mod: i for i, mod in enumerate(target_topics)}
