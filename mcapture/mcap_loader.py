@@ -53,7 +53,7 @@ class McapLoader:
                 if topic in target_topics:
                     topics_found.add(topic)
                     # メッセージタイプを取得してデシリアライズ
-                    decoder = Ros1Decoder()
+                    decoder = Ros2Decoder()
                     msg = decoder.decode(schema, message)
 
                     if topic not in load_result:
@@ -148,7 +148,8 @@ class McapLoader:
             return 0
 
         stamp = msg["header"]["stamp"]
-        secs = stamp["secs"]
-        nsecs = stamp["nsecs"]
-
+        # secs = stamp["secs"]
+        # nsecs = stamp["nsecs"]
+        secs = stamp["sec"]
+        nsecs = stamp["nanosec"]
         return secs * 1_000_000_000 + nsecs

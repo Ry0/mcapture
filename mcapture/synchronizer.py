@@ -17,19 +17,17 @@ class Synchronizer:
     def __init__(self,
                  base_topic: str,
                  sync_method: SyncMethod = SyncMethod.APPROXIMATE_TIME,
-                 time_tolerance: float = 0.1, epsilon: float = 0.1):
+                 time_tolerance: float = 0.1):
         """
         MCAPファイルから複数のトピックのデータを時間同期して取得するクラス
 
         Parameters:
         sync_method (SyncMethod): 時間同期方式
         time_tolerance (float): 許容する時間差（秒）
-        epsilon (float): ApproximateEpsilonTimeで使用する許容誤差（秒）
         base_topic (str, optional): 同期のベースとなるトピック。Noneの場合は最初のトピック
         """
         self.sync_method = sync_method
         self.time_tolerance = time_tolerance
-        self.epsilon = epsilon
         self.base_topic = base_topic
 
     def synchronize(self, data: Dict) -> List[Dict]:
@@ -59,18 +57,27 @@ class Synchronizer:
                 return 0
         else:
             stamp = msg["header"]["stamp"]
-        secs = stamp["secs"]
-        nsecs = stamp["nsecs"]
+        # secs = stamp["secs"]
+        # nsecs = stamp["nsecs"]
+        secs = stamp["sec"]
+        nsecs = stamp["nanosec"]
 
         return secs * 1_000_000_000 + nsecs
 
     def _from_nanoseconds(self, nanoseconds):
+        # secs = nanoseconds // 1_000_000_000
+        # nsecs = nanoseconds % 1_000_000_000
+
+        # return {
+        #     "secs": secs,
+        #     "nsecs": nsecs
+        # }
         secs = nanoseconds // 1_000_000_000
         nsecs = nanoseconds % 1_000_000_000
 
         return {
-            "secs": secs,
-            "nsecs": nsecs
+            "sec": secs,
+            "nanosec": nsecs
         }
 
     def _synchronize_exact_time(self, data: Dict) -> List[Dict]:
@@ -126,7 +133,7 @@ class Synchronizer:
             # この時間枠での同期データを格納する辞書
             frame = {
                 'stamp': self._from_nanoseconds(base_time),
-                self.base_topic: data[self.base_topic]
+                self.base_topic: base_msg
             }
 
             # 他のトピックの近いメッセージを探す
@@ -138,12 +145,12 @@ class Synchronizer:
                 closest_msg = self._find_closest_message(
                     data[topic],
                     base_time,
-                    self.time_tolerance
+                    # self.time_tolerance
                 )
 
                 if closest_msg:
                     frame[topic] = closest_msg
-                elif topic in data.keys():
+                else:
                     all_topics_found = False
                     break
 
@@ -184,7 +191,7 @@ class Synchronizer:
             max_time = max(timestamps)
 
             # 最大時間差がイプシロン以内なら、同期フレームとして追加
-            if (max_time - min_time) / 1e9 <= self.epsilon:
+            if (max_time - min_time) / 1e9 <= self.time_tolerance:
                 frame = {'stamp': self._from_nanoseconds(min_time)}  # 最も早いタイムスタンプを使用
 
                 for topic, msg in current_msgs.items():
@@ -227,7 +234,9 @@ class Synchronizer:
         all_timestamps = []
         for msgs in data.values():
             if msgs:
-                all_timestamps.extend([self._to_nanoseconds(msg) for msg in msgs])
+                all_timestamps.extend(
+                    [ts for msg in msgs if (ts := self._to_nanoseconds(msg)) != 0]
+                )
 
         if not all_timestamps:
             return []
@@ -250,7 +259,7 @@ class Synchronizer:
 
                 if latest_msg:
                     frame[topic] = latest_msg
-                elif topic in data.keys():
+                else:
                     all_required_found = False
                     break
 
@@ -263,15 +272,13 @@ class Synchronizer:
         print(f"LatestTime sync: Found {len(synchronized_data)} synchronized frames")
         return synchronized_data
 
-    def _find_closest_message(self, messages: List[Dict], target_time: int,
-                              max_diff_sec: float) -> Optional[Dict]:
+    def _find_closest_message(self, messages: List[Dict], target_time: int) -> Optional[Dict]:
         """
         指定した時間に最も近いメッセージを見つける
 
         Parameters:
             messages (List[Dict]): メッセージのリスト
             target_time (int): 対象の時間（ナノ秒）
-            max_diff_sec (float): 許容される最大時間差（秒）
 
         Returns:
             Optional[Dict]: 見つかったメッセージ、または時間許容範囲外ならNone
@@ -295,13 +302,14 @@ class Synchronizer:
             closest_idx = index - 1 if prev_diff < curr_diff else index
 
         # 時間差を確認
-        time_diff_sec = abs(target_time - timestamps[closest_idx]) / 1e9
+        # time_diff_sec = abs(target_time - timestamps[closest_idx]) / 1e9
 
-        # 許容範囲内なら返す
-        if time_diff_sec <= max_diff_sec:
-            return messages[closest_idx]
-        else:
-            return None
+        # # 許容範囲内なら返す
+        # if time_diff_sec <= max_diff_sec:
+        #     return messages[closest_idx]
+        # else:
+        #     return None
+        return messages[closest_idx]
 
     def _find_latest_message_before(self, messages: List[Dict], target_time: int) -> Optional[Dict]:
         """
@@ -343,14 +351,16 @@ class Synchronizer:
         for entry in data:
             # timestampのプロット（青い縦線）
             ts_time = self._to_nanoseconds(entry) / 1e9
-            all_times.append(ts_time)
+            if ts_time != 0:
+                all_times.append(ts_time)
             ax.axvline(ts_time, color='blue', linestyle='-', linewidth=1)
 
             connected_points = []
             for mod in target_topics:
                 if mod in entry:
                     t = self._to_nanoseconds(entry[mod]) / 1e9
-                    all_times.append(t)
+                    if t != 0:
+                        all_times.append(t)
                     ax.plot(t, mod_indices[mod], 'o', color='red', markersize=5)
                     connected_points.append((t, mod_indices[mod]))
             # 線で接続（同じ辞書内のモダリティ間）
@@ -378,7 +388,7 @@ class Synchronizer:
             #     np.ceil(max_t / grid_interval) * grid_interval + grid_interval,
             #     grid_interval)
             # ax.set_xticks(xticks)
-            ax.grid(True, axis='x', linestyle='--', alpha=0.5)
+            # ax.grid(True, axis='x', linestyle='--', alpha=0.5)
 
         plt.tight_layout()
 
