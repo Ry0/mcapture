@@ -69,7 +69,12 @@ latest_sync_data = sync.synchronize_latest_time(data, sampling_interval_sec=0.1)
 
 ```python
 # 同期結果の可視化
-sync.plot(exact_sync_data, ['topic1', 'topic2', 'topic3'])
+target_topics = [
+    "/joint_states",
+    "/camera/camera/color/image_rect_raw",
+    "/image_raw"
+]
+sync.plot(exact_sync_data, target_topics)
 ```
 
 ## サンプルデータ
@@ -84,7 +89,7 @@ https://github.com/user-attachments/assets/aa9e488c-6b3d-43d2-ab50-1bee820c6ec2
 
 ![Image](https://github.com/user-attachments/assets/7a9d93e5-2ebc-4c44-b629-d6f71f5eebb4)
 
-※ 画像はダミーデータで動作確認。サンプルデータはタイムスタンプが完全一致する組み合わせはないです。
+※ 画像はダミーデータで動作確認。サンプルデータでタイムスタンプが完全一致する組み合わせは存在しません。
 
 ### ApproximateTime
 時間的に近いメッセージの最適な組み合わせを見つけます。各トピックのメッセージをキューに保存し、タイムスタンプの差が最小になる組み合わせを探索します。
