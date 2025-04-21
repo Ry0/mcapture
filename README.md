@@ -33,8 +33,8 @@ for key in load_result:
 > 独自の解釈も含まれます。
 
 * `ExactTime`: 完全に同じタイムスタンプを持つメッセージのみを同期
-* `ApproximateTime`: 時間的に近いメッセージの最適な組み合わせを見つける
-* `ApproximateEpsilonTime`: 指定した時間間隔以内にあるメッセージを同期
+* `ApproximateTime`（currently being implemented）: 時間的に近いメッセージの最適な組み合わせを見つける
+* `ApproximateEpsilonTime`（currently being implemented）: 指定した時間間隔以内にあるメッセージを同期
 * `LatestTime`: 特定の時間間隔でサンプリングし、最新のメッセージを使用
 
 ```python
