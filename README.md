@@ -82,6 +82,10 @@ https://github.com/user-attachments/assets/aa9e488c-6b3d-43d2-ab50-1bee820c6ec2
 ### ExactTime
 完全に同じタイムスタンプを持つメッセージのみを同期します。全てのトピックが共通のタイムスタンプを持つ場合にのみデータフレームが生成されます。
 
+![Image](https://github.com/user-attachments/assets/7a9d93e5-2ebc-4c44-b629-d6f71f5eebb4)
+
+※ 画像はダミーデータで動作確認。サンプルデータはタイムスタンプが完全一致する組み合わせはないです。
+
 ### ApproximateTime
 時間的に近いメッセージの最適な組み合わせを見つけます。各トピックのメッセージをキューに保存し、タイムスタンプの差が最小になる組み合わせを探索します。
 
