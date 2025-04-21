@@ -77,7 +77,7 @@ target_topics = [
 sync.plot(exact_sync_data, target_topics)
 ```
 
-## サンプルデータ
+## Sample Data
 You can find a sample dataset on [Google Drive](https://drive.google.com/file/d/19syK1ukBqSF0Aje4-crzr3pdAnfyz1X2/view)においています。
 
 https://github.com/user-attachments/assets/aa9e488c-6b3d-43d2-ab50-1bee820c6ec2
