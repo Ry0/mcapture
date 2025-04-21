@@ -72,6 +72,12 @@ latest_sync_data = sync.synchronize_latest_time(data, sampling_interval_sec=0.1)
 sync.plot(exact_sync_data, ['topic1', 'topic2', 'topic3'])
 ```
 
+## サンプルデータ
+[Googleドライブ](https://drive.google.com/file/d/19syK1ukBqSF0Aje4-crzr3pdAnfyz1X2/view)においています。
+
+https://github.com/user-attachments/assets/aa9e488c-6b3d-43d2-ab50-1bee820c6ec2
+
+
 ## 同期アルゴリズムの概要
 ### ExactTime
 完全に同じタイムスタンプを持つメッセージのみを同期します。全てのトピックが共通のタイムスタンプを持つ場合にのみデータフレームが生成されます。
@@ -79,17 +85,17 @@ sync.plot(exact_sync_data, ['topic1', 'topic2', 'topic3'])
 ### ApproximateTime
 時間的に近いメッセージの最適な組み合わせを見つけます。各トピックのメッセージをキューに保存し、タイムスタンプの差が最小になる組み合わせを探索します。
 
-![image](.image/Figure_1.png)
+![Image](https://github.com/user-attachments/assets/549acd5e-9e9e-4903-a65b-8f133ea20e9b)
 
 ### ApproximateEpsilonTime
 指定した時間間隔（イプシロン）以内にあるメッセージを同期します。各トピックの先頭メッセージ間の時間差がイプシロン以内であれば同期対象となります。
 
-![image](.image/Figure_2.png)
+![Image](https://github.com/user-attachments/assets/1d8e86d6-c5d8-4fe3-a500-c7ea8e88af1a)
 
 ### LatestTime
 一定の時間間隔でサンプリングし、各サンプリング時点での各トピックの最新メッセージを使用します。
 
-![image](.image/Figure_3.png)
+![Image](https://github.com/user-attachments/assets/9e87907d-f1ee-4213-8cd8-733bb253b2b5)
 
 ## ライセンス
 MIT Lisence
