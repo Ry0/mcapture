@@ -26,7 +26,7 @@ for key in load_result:
     print(f"Topic name: {key}, Data length: {len(load_result[key])}")
 ```
 
-マルチモーダルなデータの時間同期を行う際に、同期方式に対応。
+マルチモーダルなデータの時間同期を行う際に、以下の４つの同期方式に対応。
 
 > [!IMPORTANT]
 > ROS2のmessage filters機能を完全に再現したものではありません。
